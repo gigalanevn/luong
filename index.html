@@ -347,11 +347,21 @@ function updateCongChuan() {
         calculateAll();
     });
 
-    window.onload = () => { 
+    window.onload = () => {
+    // 1. Lấy ngày tháng hiện tại từ hệ thống máy tính
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1; // getMonth() trả về 0-11 nên phải +1
+    const currentYear = now.getFullYear();
+
+    // 2. Gán vào ô chọn Tháng và Năm
+    document.getElementById('selMonth').value = currentMonth;
+    document.getElementById('selYear').value = currentYear;
+
+    // 3. Chạy các hàm khởi tạo có sẵn của bạn
     updateHistoryList(); 
-    load(); 
-    updateCongChuan(); // Thêm dòng này
-    calculateAll(); 
+    load();            // Nếu có dữ liệu lưu cũ, nó sẽ ghi đè lên tháng hiện tại
+    updateCongChuan(); // Tính công chuẩn cho tháng vừa mặc định
+    calculateAll();    // Tính toán lại toàn bộ bảng lương
 };
 </script>
 </body>
