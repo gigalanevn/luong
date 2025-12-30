@@ -98,15 +98,28 @@
                 <select id="selMonth" class="select-date save" onchange="updateCongChuan(); calculateAll()">
                     <script>for(let i=1; i<=12; i++) document.write(`<option value="${i}">Tháng ${i}</option>`)</script>
                 </select>
-                <select id="selYear" class="select-date save" onchange="updateCongChuan(); calculateAll()">
+                <!-- <select id="selYear" class="select-date save" onchange="updateCongChuan(); calculateAll(); calculateYearTotal();"> -->
+                    <select id="selYear" class="select-date save" onchange="document.getElementById('show_year_total').checked = false; toggleYearTotal(); updateCongChuan(); calculateAll();">
                     <script>for(let i=2025; i<=2035; i++) document.write(`<option value="${i}">Năm ${i}</option>`)</script>
                 </select>
             </div>
         </div>
         <div class="top-final-box">
             <span class="top-final-label">THỰC LĨNH:</span>
+
             <span class="top-final-val" id="final_total_top">0</span>
+
         </div>
+  <div class="top-final-box" style="margin-left: 10px; border-color: #28a745; display: flex; align-items: center; gap: 8px;">
+    <input type="checkbox" id="show_year_total" onchange="toggleYearTotal()" style="width: 18px; height: 18px; cursor: pointer;">
+    
+    <div id="year_total_content" style="display: none; align-items: center;">
+        <span class="top-final-label" style="color: #1b5e20; font-size: 14px; margin-right: 5px;">TỔNG THỰC NHẬN CẢ NĂM:</span>
+        <span class="top-final-val" id="year_total" style="color: #2e7d32; font-size: 22px;">0</span>
+    </div>
+    
+    <span id="year_total_placeholder" style="color: #666; font-size: 12px; font-style: italic;">Hiện tổng thực nhận cả năm</span>
+</div>
     </div>
 
     <div class="storage-bar">
@@ -213,6 +226,7 @@
 </div>
 
 <script>
+    
 
     const STORAGE_KEY_HISTORY = 'gigalane_history_data_v6';
     function fN(n) { return Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ","); }
@@ -289,6 +303,7 @@ function updateCongChuan() {
         history[key] = d;
         localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
         alert('Đã lưu');
+        calculateYearTotal();
         updateHistoryList();
     }
 
@@ -362,7 +377,71 @@ function updateCongChuan() {
     load();            // Nếu có dữ liệu lưu cũ, nó sẽ ghi đè lên tháng hiện tại
     updateCongChuan(); // Tính công chuẩn cho tháng vừa mặc định
     calculateAll();    // Tính toán lại toàn bộ bảng lương
+    calculateYearTotal();
 };
+function calculateYearTotal() {
+    if (!document.getElementById('show_year_total').checked) return;
+    const history = JSON.parse(localStorage.getItem(STORAGE_KEY_HISTORY) || '{}');
+    const selectedYear = document.getElementById('selYear').value;
+    let totalYear = 0;
+
+    for (let key in history) {
+        // Chỉ tính những bản ghi thuộc năm đang chọn
+        if (key.includes(selectedYear)) {
+            const d = history[key];
+            
+            // Chuyển đổi dữ liệu sang số, nếu rỗng thì bằng 0
+            const n = (id) => parseFloat(String(d[id] || '0').replace(/,/g, '')) || 0;
+
+            // KIỂM TRA: Nếu tháng đó không có Lương CB thì bỏ qua (tránh số âm do chỉ trừ BHXH)
+            if (n('luongCB') <= 0) continue;
+
+            const chuan = n('soCongChuan') || 26;
+            const thuc = n('soNgayGio') || 0;
+            const tile = thuc / chuan;
+
+            // 1. Thu nhập theo công thực tế
+            let t1_thuc = 0;
+            const list1 = ['luongCB','pccv','pckn','pcat','pcpccc','pcsk','pctn','pcdt','pcno','pcdl','pccc'];
+            list1.forEach(id => { t1_thuc += n(id) * tile; });
+
+            // 2. Tính lương tăng ca
+            const luongTC = n('luongCB') + n('pccv') + n('pckn') + n('pctn') + n('pcsk') + n('pcno');
+            const gioTC = luongTC / chuan / 8;
+            let t3 = (n('g150')*1.5 + n('g200')*2 + n('g210')*2.1 + n('g200cn')*2 + n('g270')*2.7 + n('g300')*3 + n('g390')*3.9) * gioTC;
+
+            // 3. Khoản thu khác
+            let pnu = d.chk_pnu ? (gioTC * 2.25) : 0;
+            let t2 = pnu + n('tk') + n('trenho') + n('phepton') + n('dcluong') + n('th_da') + n('th_khac') + n('pc_an') + n('pc_hoso');
+
+            // 4. Các khoản giảm trừ
+            const bh = (n('luongCB') + n('pccv') + n('pckn') + n('pctn') + n('pcsk')) * 0.105;
+            let t4 = bh + 30000 + n('trukhac');
+
+            // Cộng dồn vào tổng năm
+            totalYear += (t1_thuc + t2 + t3 - t4);
+        }
+    }
+    
+    // Hiển thị kết quả lên màn hình
+    const element = document.getElementById('year_total');
+    if(element) element.innerText = fN(totalYear);
+
+}
+function toggleYearTotal() {
+    const isChecked = document.getElementById('show_year_total').checked;
+    const content = document.getElementById('year_total_content');
+    const placeholder = document.getElementById('year_total_placeholder');
+
+    if (isChecked) {
+        content.style.display = 'flex';      // Hiện số tiền
+        placeholder.style.display = 'none';   // Ẩn chữ gợi ý
+        calculateYearTotal();                // Tính toán lại số liệu cho mới nhất
+    } else {
+        content.style.display = 'none';      // Ẩn số tiền
+        placeholder.style.display = 'inline'; // Hiện chữ gợi ý
+    }
+}
 </script>
 </body>
 </html>
