@@ -391,6 +391,7 @@ function calculateAll() {
 // --- 4. CÁC HÀM HỆ THỐNG ---
 function saveDraft() {
     const d = {};
+    // Tìm tất cả các ô có class 'save' để lưu
     document.querySelectorAll('.save').forEach(e => {
         d[e.id] = (e.type === 'checkbox' ? e.checked : e.value);
     });
@@ -399,10 +400,11 @@ function saveDraft() {
 
 function fillData(data) {
     if (!data) return;
-    document.querySelectorAll('.save').forEach(e => {
-        if (data[e.id] !== undefined) {
-            if (e.type === 'checkbox') e.checked = data[e.id];
-            else e.value = data[e.id];
+    Object.keys(data).forEach(id => {
+        let el = document.getElementById(id);
+        if (el) {
+            if (el.type === 'checkbox') el.checked = data[id];
+            else el.value = data[id];
         }
     });
 }
@@ -467,14 +469,17 @@ function load(isDateChanged = false) {
 }
 
 window.onload = () => {
-    updateVisitCount();
+    // 1. Lấy dữ liệu từ bộ nhớ ra
     const draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
-    if (draft.selMonth) fillData(draft);
+    
+    // 2. Điền dữ liệu vào các ô
+    if (draft.selMonth) fillData(draft); 
+    
+    // 3. Chạy các hàm tính toán và cập nhật giao diện
     updateHistoryList();
     updateCongChuan();
-    calculateAll();
+    calculateAll(); 
 };
-
 document.addEventListener('input', (e) => {
     if(e.target.id === 'userName') e.target.value = e.target.value.toUpperCase();
     if(e.target.classList.contains('only-num')) e.target.value = e.target.value.replace(/[^0-9]/g, '');
